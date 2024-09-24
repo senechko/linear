@@ -11,9 +11,35 @@ const client = new GraphQLClient('https://api.linear.app/graphql', {
   },
 });
 
-// Define the date range for Q3 2024
-const startDate = "2024-07-01T00:00:00Z";
-const endDate = "2024-10-01T00:00:00Z";
+// Function to get the current quarter and year
+function getCurrentQuarterYear() {
+  const now = new Date();
+  const quarter = Math.floor(now.getMonth() / 3) + 1;
+  const year = now.getFullYear();
+  return { quarter, year };
+}
+
+// Parse command line argument or use current quarter
+let quarter, year, arg;
+if (process.argv[2] && /^Q[1-4]\d{4}$/.test(process.argv[2])) {
+  arg = process.argv[2];
+  quarter = parseInt(arg[1]);
+  year = parseInt(arg.slice(2));
+} else {
+  const current = getCurrentQuarterYear();
+  quarter = current.quarter;
+  year = current.year;
+  arg = `Q${quarter}${year}`;
+  console.log(`No valid argument provided. Using current quarter: ${arg}`);
+}
+
+// Calculate start and end dates
+const startDate = new Date(year, (quarter - 1) * 3, 1);
+const endDate = new Date(year, quarter * 3, 0);
+
+// Format dates for GraphQL query (YYYY-MM-DD format)
+const formattedStartDate = startDate.toISOString().split('T')[0];
+const formattedEndDate = endDate.toISOString().split('T')[0];
 
 const teamsQuery = `
   query {
@@ -24,8 +50,8 @@ const teamsQuery = `
         cycles(
           filter: { 
             endsAt: { 
-              gte: "2024-07-01T00:00:00Z",
-              lt: "2024-10-01T00:00:00Z"
+              gte: "${formattedStartDate}",
+              lt: "${formattedEndDate}"
             }
           }
         ) {
@@ -52,8 +78,8 @@ const scopeChangeQuery = `
         cycles(
           filter: { 
             endsAt: { 
-              gte: "2024-07-01T00:00:00Z",
-              lt: "2024-10-01T00:00:00Z"
+              gte: "${formattedStartDate}",
+              lt: "${formattedEndDate}"
             }
           }
         ) {
@@ -139,8 +165,9 @@ const main = async () => {
     
     const csvContent = csvRows.join('\n');
     
-    fs.writeFileSync('team_cycle_data.csv', csvContent);
-    console.log('CSV file has been written successfully: team_cycle_data.csv');
+    const outputFileName = `team_cycle_data_${arg}.csv`;
+    fs.writeFileSync(outputFileName, csvContent);
+    console.log(`CSV file has been written successfully: ${outputFileName}`);
     
     console.log(csvContent);
     
