@@ -5,6 +5,13 @@ import fs from 'fs';
 // Load environment variables from a .env file
 dotenv.config();
 
+// Check if the API key is set
+if (!process.env.LINEAR_API_KEY) {
+  console.error('Error: LINEAR_API_KEY is not set in the environment variables.');
+  console.error('Please set the LINEAR_API_KEY environment variable or add it to your .env file.');
+  process.exit(1);
+}
+
 const client = new GraphQLClient('https://api.linear.app/graphql', {
   headers: {
     Authorization: `${process.env.LINEAR_API_KEY}`,
@@ -172,7 +179,15 @@ const main = async () => {
     console.log(csvContent);
     
   } catch (error) {
-    console.error('Error:', error.message);
+    if (error.response && error.response.errors) {
+      console.error('GraphQL Errors:');
+      error.response.errors.forEach((err, index) => {
+        console.error(`Error ${index + 1}:`, err.message);
+      });
+    } else {
+      console.error('Error:', error.message);
+    }
+    process.exit(1);
   }
 };
 
