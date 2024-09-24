@@ -5,6 +5,32 @@ import fs from 'fs';
 // Load environment variables from a .env file
 dotenv.config();
 
+// Function to display usage information
+function displayHelp() {
+  console.log(`
+Usage: npm start -- [options] [quarter]
+
+Options:
+  -h           Display this help message
+  -o <file>    Specify the output file name
+
+Arguments:
+  quarter      Specify the quarter in the format Q[1-4]YYYY (e.g., Q32024)
+               If not provided, the current quarter will be used
+
+Examples:
+  npm start -- -h
+  npm start -- Q32024
+  npm start -- -o custom_output.csv
+  npm start -- Q32024 -o custom_output.csv
+
+Description:
+  This script fetches team cycle data from Linear and outputs it to a CSV file.
+  If no output file is specified, it will use the default name: team_cycle_data_[quarter].csv
+  `);
+  process.exit(0);
+}
+
 // Check if the API key is set
 if (!process.env.LINEAR_API_KEY) {
   console.error('Error: LINEAR_API_KEY is not set in the environment variables.');
@@ -26,18 +52,53 @@ function getCurrentQuarterYear() {
   return { quarter, year };
 }
 
-// Parse command line argument or use current quarter
-let quarter, year, arg;
-if (process.argv[2] && /^Q[1-4]\d{4}$/.test(process.argv[2])) {
-  arg = process.argv[2];
-  quarter = parseInt(arg[1]);
-  year = parseInt(arg.slice(2));
-} else {
+// Parse command line arguments
+let quarter, year, arg, outputFile;
+const args = process.argv.slice(2);
+
+// Function to parse arguments
+function parseArgs(args) {
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '-h') {
+      displayHelp();
+    } else if (args[i] === '-o') {
+      if (i + 1 < args.length) {
+        outputFile = args[i + 1];
+        i++; // Skip the next argument as it's the filename
+      } else {
+        console.error('Error: -o option requires a filename argument.');
+        process.exit(1);
+      }
+    } else if (/^Q[1-4]\d{4}$/.test(args[i])) {
+      arg = args[i];
+      quarter = parseInt(arg[1]);
+      year = parseInt(arg.slice(2));
+    }
+  }
+}
+
+// First, try to parse arguments as is
+parseArgs(args);
+
+// If no arguments were recognized, try parsing without the first argument
+// This handles the case when npm adds its own arguments
+if (!quarter && !year && !outputFile && args.length > 1) {
+  parseArgs(args.slice(1));
+}
+
+// If quarter and year are not set, use current quarter
+if (!quarter || !year) {
   const current = getCurrentQuarterYear();
   quarter = current.quarter;
   year = current.year;
   arg = `Q${quarter}${year}`;
-  console.log(`No valid argument provided. Using current quarter: ${arg}`);
+  console.log(`No valid quarter argument provided. Using current quarter: ${arg}`);
+}
+
+// If output file is not specified, use default name
+if (!outputFile) {
+  outputFile = `team_cycle_data_${arg}.csv`;
+  console.log(`No output file specified. Using default: ${outputFile}`);
 }
 
 // Calculate start and end dates
@@ -172,11 +233,8 @@ const main = async () => {
     
     const csvContent = csvRows.join('\n');
     
-    const outputFileName = `team_cycle_data_${arg}.csv`;
-    fs.writeFileSync(outputFileName, csvContent);
-    console.log(`CSV file has been written successfully: ${outputFileName}`);
-    
-    console.log(csvContent);
+    fs.writeFileSync(outputFile, csvContent);
+    console.log(`CSV file has been written successfully: ${outputFile}`);
     
   } catch (error) {
     if (error.response && error.response.errors) {
