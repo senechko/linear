@@ -201,7 +201,7 @@ const main = async () => {
         
         const capacityAccuracy = (totalIssueCount - scopeChange) !== 0
           ? Math.round((completedIssueCount / (totalIssueCount - scopeChange)) * 100)
-          : 'N/A';
+          : 100;
         
         const startDate = new Date(cycle.startsAt).toISOString().split('T')[0];
         const endDate = new Date(cycle.endsAt).toISOString().split('T')[0];
